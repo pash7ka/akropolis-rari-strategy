@@ -39,25 +39,48 @@ contract Strategy is BaseStrategy {
     IERC20 public rariGovToken;
     IERC20 internal weth;
 
-    constructor(address _vault, address _rari, string memory _rariCurrencyCode, address _rariGovToken, address _uniswapRouter) public BaseStrategy(_vault) {
+    constructor(address _vault) public BaseStrategy(_vault) {
         // You can set these parameters on deployment to whatever you want
         // maxReportDelay = 6300;
         // profitFactor = 100;
         // debtThreshold = 0;
+    }
 
-        // Rari initialization
+    function setRari(address _rari, string calldata _rariCurrencyCode, address _rariGovToken) external onlyAuthorized {
+        if(address(rari) != address(0) && address(rari) != _rari){
+            // Clear old approvals
+            rariFundToken.approve(address(rari), 0);
+            want.approve(address(rari), 0);
+        }
+
         rari = IRariFundManager(_rari);
         rariCurrencyCode = _rariCurrencyCode;
         rariFundToken = IERC20(rari.rariFundToken());
         rariGovToken = IERC20(_rariGovToken);
+        require(address(rariFundToken) != address(0), "Wrong RFT address on FundManager");
 
-        // Uniswap initialization
-        uniswap = IUniswapV2Router(_uniswapRouter);
-        weth = IERC20(uniswap.WETH());
-
-        // Approvals
         rariFundToken.approve(address(rari), MAX_UINT256);
         want.approve(address(rari), MAX_UINT256);
+
+        if(address(uniswap) != address(0)){
+            rariGovToken.approve(address(uniswap), MAX_UINT256);
+            weth.approve(address(uniswap), MAX_UINT256);
+        }
+    }
+
+    function setUniswap(address _uniswapRouter) external onlyAuthorized  {
+        if(address(uniswap) != address(0) && address(uniswap) != _uniswapRouter){
+            // Clear old approvals
+            if(address(rariGovToken) != address(0)){
+                rariGovToken.approve(address(uniswap), 0);
+            }
+            weth.approve(address(uniswap), 0);
+        }
+
+        uniswap = IUniswapV2Router(_uniswapRouter);
+        weth = IERC20(uniswap.WETH());
+        require(address(weth) != address(0), "Wrong WETH address on router");
+
         rariGovToken.approve(address(uniswap), MAX_UINT256);
         weth.approve(address(uniswap), MAX_UINT256);
     }

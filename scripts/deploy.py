@@ -56,3 +56,22 @@ def main():
         return
 
     strategy = Strategy.deploy(vault, {"from": dev}, publish_source=publish_source)
+
+    rariFundManager = "0x59fa438cd0731ebf5f4cdcaf72d4960efd13fce6"
+    rariCurrencyCode = vault.token().symbol()
+    rariGovToken = "0xD291E7a03283640FDc51b121aC401383A46cC623"
+    uniswapRouter = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"
+
+    print(
+        f"""
+    Strategy Settings
+
+       rariFundManager: {rariFundManager}
+      rariCurrencyCode: '{rariCurrencyCode}'
+          rariGovToken: {rariGovToken}
+         uniswapRouter: {uniswapRouter}
+    """
+    )
+
+    strategy.setRari(rariFundManager, rariCurrencyCode, rariGovToken, {"from": dev})
+    strategy.setUniswap(uniswapRouter, {"from": dev})
