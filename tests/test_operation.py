@@ -79,7 +79,7 @@ def test_change_debt(gov, token, vault, strategy, strategist, amount, RELATIVE_A
     # assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == half
 
 
-def test_sweep(gov, vault, strategy, token, amount, weth, weth_amout):
+def test_sweep(gov, vault, strategy, token, amount, weth, weth_amount):
     # Strategy want token doesn't work
     token.transfer(strategy, amount, {"from": gov})
     assert token.address == strategy.want()
@@ -96,14 +96,14 @@ def test_sweep(gov, vault, strategy, token, amount, weth, weth_amout):
     # with brownie.reverts("!protected"):
     #     strategy.sweep(strategy.protectedToken(), {"from": gov})
 
-    weth.transfer(strategy, weth_amout, {"from": gov})
+    weth.transfer(strategy, weth_amount, {"from": gov})
     assert weth.address != strategy.want()
     assert weth.balanceOf(gov) == 0
     strategy.sweep(weth, {"from": gov})
-    assert weth.balanceOf(gov) == weth_amout
+    assert weth.balanceOf(gov) == weth_amount
 
 
-def test_triggers(gov, vault, strategy, token, amount, weth, weth_amout):
+def test_triggers(gov, vault, strategy, token, amount, weth, weth_amount):
     # Deposit to the vault and harvest
     token.approve(vault.address, amount, {"from": gov})
     vault.deposit(amount, {"from": gov})

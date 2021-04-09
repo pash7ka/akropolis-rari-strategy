@@ -2,6 +2,19 @@ import pytest
 from brownie import config
 from brownie import Contract
 
+@pytest.fixture
+def rari():
+    yield {
+        "fundManager":"0x59fa438cd0731ebf5f4cdcaf72d4960efd13fce6",
+        "currencyCode":"DAI",
+        "govToken":"0xD291E7a03283640FDc51b121aC401383A46cC623"
+    }
+
+@pytest.fixture
+def uniswap():
+    yield {
+        "router":"0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"
+    }
 
 @pytest.fixture
 def gov(accounts):
@@ -56,10 +69,10 @@ def weth():
 
 
 @pytest.fixture
-def weth_amout(gov, weth):
-    weth_amout = 10 ** weth.decimals()
-    gov.transfer(weth, weth_amout)
-    yield weth_amout
+def weth_amount(gov, weth):
+    weth_amount = 10 ** weth.decimals()
+    gov.transfer(weth, weth_amount)
+    yield weth_amount
 
 
 @pytest.fixture
@@ -73,10 +86,14 @@ def vault(pm, gov, rewards, guardian, management, token):
 
 
 @pytest.fixture
-def strategy(strategist, keeper, vault, Strategy, gov):
+def strategy(strategist, keeper, vault, Strategy, gov, rari, uniswap):
     strategy = strategist.deploy(Strategy, vault)
     strategy.setKeeper(keeper)
     vault.addStrategy(strategy, 10_000, 0, 2 ** 256 - 1, 1_000, {"from": gov})
+
+    strategy.setRari(rari["fundManager"], rari["currencyCode"], rari["govToken"], {"from": gov})
+    strategy.setUniswap(uniswap["router"], {"from": gov})
+
     yield strategy
 
 
