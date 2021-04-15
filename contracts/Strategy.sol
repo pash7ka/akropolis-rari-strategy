@@ -19,6 +19,7 @@ import {
 
 // Import interfaces for many popular DeFi projects, or add your own!
 //import "../interfaces/<protocol>/<Interface>.sol";
+import  "../interfaces/IERC20Detailed.sol";
 import  "../interfaces/rari/IRariFundManager.sol";
 import  "../interfaces/rari/IRariFundToken.sol";
 import  "../interfaces/rari/IRariGovernanceTokenDistributor.sol";
@@ -38,6 +39,8 @@ contract Strategy is BaseStrategy {
     IERC20 public rariFundToken;
     IERC20 public rariGovToken;
     IERC20 internal weth;
+    uint8 internal wantDecimals;
+    uint256 internal storedDepositedBalance;
 
     constructor(address _vault) public BaseStrategy(_vault) {
         // You can set these parameters on deployment to whatever you want
@@ -66,6 +69,8 @@ contract Strategy is BaseStrategy {
             rariGovToken.approve(address(uniswap), MAX_UINT256);
             weth.approve(address(uniswap), MAX_UINT256);
         }
+        
+        wantDecimals = IERC20Detailed(address(want)).decimals();
     }
 
     function setUniswap(address _uniswapRouter) external onlyAuthorized  {
@@ -92,8 +97,15 @@ contract Strategy is BaseStrategy {
     }
 
     function estimatedTotalAssets() public view override returns (uint256) {
-        // TODO: Build a more accurate estimate using the value of all positions in terms of `want`
-        return want.balanceOf(address(this));
+        // TODO: Calculate RGT rewards
+        return want.balanceOf(address(this)).add(storedDepositedBalance);
+    }
+
+    function updateStoredDepositedBalance() public returns(uint256) {
+        uint256 balanceUSD = rari.balanceOf(address(this));
+        uint256 withdrawableUSD = balanceUSD.sub(withdrawalFee(balanceUSD));
+        storedDepositedBalance = usdToWant(withdrawableUSD);
+        return storedDepositedBalance;
     }
 
     function prepareReturn(uint256 _debtOutstanding)
@@ -114,6 +126,8 @@ contract Strategy is BaseStrategy {
         } else {
             claimAndSwapRGT();
         }
+
+        updateStoredDepositedBalance();
 
         uint256 wantBalance = want.balanceOf(address(this));
         if(wantBalance >= _debtOutstanding) {
@@ -136,6 +150,8 @@ contract Strategy is BaseStrategy {
             uint256 depositAmount = wantBalance.sub(_debtOutstanding);
             rari.deposit(rariCurrencyCode, depositAmount);
         }
+        
+        updateStoredDepositedBalance();
     }
 
     function liquidatePosition(uint256 _amountNeeded)
@@ -152,6 +168,8 @@ contract Strategy is BaseStrategy {
             claimAndSwapRGT();
         }
 
+        updateStoredDepositedBalance();
+
         uint256 totalAssets = want.balanceOf(address(this));
         if (_amountNeeded > totalAssets) {
             _liquidatedAmount = totalAssets;
@@ -164,16 +182,17 @@ contract Strategy is BaseStrategy {
     // NOTE: Can override `tendTrigger` and `harvestTrigger` if necessary
 
     function withdrawFunds(uint256 wantAmount) internal {
-        uint256 withdrawAmount = wantAmount.add(withdrawalFee(wantAmount));
-        uint256 rftToBurn = usdToRft(withdrawAmount);
+        uint256 wantAmountUsd = wantToUsd(wantAmount);
+        uint256 withdrawAmountUsd = wantAmountUsd.add(withdrawalFee(wantAmountUsd));
+        uint256 rftToBurn = usdToRft(withdrawAmountUsd);
         uint256 rftBalance = rariFundToken.balanceOf(address(this));
 
         if(rftBalance < rftToBurn) {
             // We can only withdraw as much as we have. During withrawal we'll recieve some RGT
-            withdrawAmount = rftToUsd(rftBalance);
+            withdrawAmountUsd = rftToUsd(rftBalance);
         }
 
-        rari.withdraw(rariCurrencyCode, withdrawAmount);
+        rari.withdraw(rariCurrencyCode, usdToWant(withdrawAmountUsd));
         swapRGT();
     }
 
@@ -212,11 +231,30 @@ contract Strategy is BaseStrategy {
         require(fundBalanceUsd > 0, "Rari fund balance is 0");
         return usdAmount.mul(rftTotalSupply).div(fundBalanceUsd);
     }
+
     function rftToUsd(uint256 rftAmount) internal returns(uint256) {
         uint256 rftTotalSupply = rariFundToken.totalSupply();
         uint256 fundBalanceUsd = rari.getFundBalance();
         require(rftTotalSupply > 0, "RFT total supply is 0");
         return rftAmount.mul(fundBalanceUsd).div(rftTotalSupply);
+    }
+
+    function usdToWant(uint256 usdAmount)  internal returns(uint256) {
+        return convertDecimals(usdAmount, 18, wantDecimals);
+    }
+
+    function wantToUsd(uint256 wantAmount)  internal returns(uint256) {
+        return convertDecimals(wantAmount, wantDecimals, 18);
+    }
+
+    function convertDecimals(uint256 amount, uint8 source, uint8 target) internal returns(uint256) {
+        if (source == target) {
+            return amount;
+        } else if (source > target) {
+            return amount.div(10**uint256(source-target));
+        } else {
+            return amount.mul(10**uint256(target-source));
+        }
     }
 
     function withdrawalFee(uint256 usdAmount) internal returns(uint256) {
