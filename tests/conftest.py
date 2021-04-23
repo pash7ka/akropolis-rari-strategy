@@ -1,5 +1,6 @@
 import pytest
 from brownie import config
+from brownie import interface
 from brownie import Contract
 
 @pytest.fixture
@@ -96,6 +97,11 @@ def strategy(strategist, keeper, vault, Strategy, gov, rari, uniswap):
 
     yield strategy
 
+@pytest.fixture
+def rariFeeRate(rari):
+    fundManager = interface.IRariFundManager(rari["fundManager"])
+    feeRate = fundManager.getWithdrawalFeeRate()
+    yield feeRate;
 
 @pytest.fixture(scope="session")
 def RELATIVE_APPROX():
