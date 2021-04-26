@@ -101,7 +101,11 @@ def strategy(strategist, keeper, vault, Strategy, gov, rari, uniswap):
 def rariFeeRate(rari):
     fundManager = interface.IRariFundManager(rari["fundManager"])
     feeRate = fundManager.getWithdrawalFeeRate()
-    yield feeRate;
+    yield feeRate
+
+@pytest.fixture
+def amountWithoutFee(rariFeeRate, amount):
+    return amount * (1e18 - rariFeeRate) / 1e18
 
 @pytest.fixture(scope="session")
 def RELATIVE_APPROX():

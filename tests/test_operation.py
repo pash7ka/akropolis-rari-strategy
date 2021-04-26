@@ -4,7 +4,7 @@ import pytest
 
 
 def test_operation(
-    accounts, token, vault, strategy, strategist, amount, RELATIVE_APPROX
+    accounts, token, vault, strategy, strategist, amount, RELATIVE_APPROX, amountWithoutFee
 ):
     # Deposit to the vault
     token.approve(vault.address, amount, {"from": accounts[0]})
@@ -13,24 +13,24 @@ def test_operation(
 
     # harvest
     strategy.harvest()
-    assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
+    assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amountWithoutFee
 
     # tend()
     strategy.tend()
 
     # withdrawal
     vault.withdraw({"from": accounts[0]})
-    assert pytest.approx(token.balanceOf(accounts[0]), rel=RELATIVE_APPROX) == amount
+    assert pytest.approx(token.balanceOf(accounts[0]), rel=RELATIVE_APPROX) == amountWithoutFee
 
 
 def test_emergency_exit(
-    accounts, token, vault, strategy, strategist, amount, RELATIVE_APPROX
+    accounts, token, vault, strategy, strategist, amount, RELATIVE_APPROX, rariFeeRate
 ):
     # Deposit to the vault
     token.approve(vault.address, amount, {"from": accounts[0]})
     vault.deposit(amount, {"from": accounts[0]})
     strategy.harvest()
-    assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
+    assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amountWithoutFee
 
     # set emergency and exit
     strategy.setEmergencyExit()
@@ -39,7 +39,7 @@ def test_emergency_exit(
 
 
 def test_profitable_harvest(
-    accounts, token, vault, strategy, strategist, amount, RELATIVE_APPROX
+    accounts, token, vault, strategy, strategist, amount, RELATIVE_APPROX, rariFeeRate
 ):
     # Deposit to the vault
     token.approve(vault.address, amount, {"from": accounts[0]})
@@ -48,7 +48,7 @@ def test_profitable_harvest(
 
     # harvest
     strategy.harvest()
-    assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
+    assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amountWithoutFee
 
     # You should test that the harvest method is capable of making a profit.
     # TODO: uncomment the following lines.
@@ -58,7 +58,9 @@ def test_profitable_harvest(
     # assert token.balanceOf(vault.address) > 0
 
 
-def test_change_debt(gov, token, vault, strategy, strategist, amount, RELATIVE_APPROX):
+def test_change_debt(
+    gov, token, vault, strategy, strategist, amount, RELATIVE_APPROX, rariFeeRate
+):
     # Deposit to the vault and harvest
     token.approve(vault.address, amount, {"from": gov})
     vault.deposit(amount, {"from": gov})
@@ -70,7 +72,7 @@ def test_change_debt(gov, token, vault, strategy, strategist, amount, RELATIVE_A
 
     vault.updateStrategyDebtRatio(strategy.address, 10_000, {"from": gov})
     strategy.harvest()
-    assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
+    assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amountWithoutFee
 
     # In order to pass this tests, you will need to implement prepareReturn.
     # TODO: uncomment the following lines.
