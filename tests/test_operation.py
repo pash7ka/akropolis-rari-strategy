@@ -19,7 +19,8 @@ def test_operation(
     strategy.tend()
 
     # withdrawal
-    vault.withdraw({"from": accounts[0]})
+    shares = vault.balanceOf(accounts[0])
+    vault.withdraw(shares, accounts[0], 50, {"from": accounts[0]})
     assert pytest.approx(token.balanceOf(accounts[0]), rel=RELATIVE_APPROX) == amountWithoutFee
 
 
@@ -59,14 +60,14 @@ def test_profitable_harvest(
 
 
 def test_change_debt(
-    gov, token, vault, strategy, strategist, amount, RELATIVE_APPROX, amountWithoutFee
+    gov, token, vault, strategy, strategist, amount, RELATIVE_APPROX, rariFeeRate, amountWithoutFee
 ):
     # Deposit to the vault and harvest
     token.approve(vault.address, amount, {"from": gov})
     vault.deposit(amount, {"from": gov})
     vault.updateStrategyDebtRatio(strategy.address, 5_000, {"from": gov})
     strategy.harvest()
-    half = int(amount / 2)
+    half = int(amountWithoutFee / 2)
 
     assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == half
 
@@ -74,11 +75,11 @@ def test_change_debt(
     strategy.harvest()
     assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amountWithoutFee
 
-    # In order to pass this tests, you will need to implement prepareReturn.
-    # TODO: uncomment the following lines.
-    # vault.updateStrategyDebtRatio(strategy.address, 5_000, {"from": gov})
-    # strategy.harvest()
-    # assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == half
+    # With this sequence we first deposit 10k, then withdraw 5k. So the whole fee is taken from 10k
+    vault.updateStrategyDebtRatio(strategy.address, 5_000, {"from": gov})
+    strategy.harvest()
+    fivekWithoutTenKFee = ((10_000 * (1e18 - rariFeeRate) / 1e18) - 5000)*1e18
+    assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == fivekWithoutTenKFee
 
 
 def test_sweep(gov, vault, strategy, token, amount, weth, weth_amount):
