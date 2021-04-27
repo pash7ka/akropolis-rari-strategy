@@ -79,7 +79,7 @@ def test_change_debt(
     vault.updateStrategyDebtRatio(strategy.address, 5_000, {"from": gov})
     strategy.harvest()
     fivekWithoutTenKFee = ((10_000 * (1e18 - rariFeeRate) / 1e18) - 5000)*1e18
-    assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == fivekWithoutTenKFee
+    assert pytest.approx(strategy.estimatedTotalAssets(), rel=1e-4) == fivekWithoutTenKFee
 
 
 def test_sweep(gov, vault, strategy, token, amount, weth, weth_amount):
