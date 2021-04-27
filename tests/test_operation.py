@@ -24,7 +24,7 @@ def test_operation(
 
 
 def test_emergency_exit(
-    accounts, token, vault, strategy, strategist, amount, RELATIVE_APPROX, rariFeeRate
+    accounts, token, vault, strategy, strategist, amount, RELATIVE_APPROX, amountWithoutFee
 ):
     # Deposit to the vault
     token.approve(vault.address, amount, {"from": accounts[0]})
@@ -39,7 +39,7 @@ def test_emergency_exit(
 
 
 def test_profitable_harvest(
-    accounts, token, vault, strategy, strategist, amount, RELATIVE_APPROX, rariFeeRate
+    accounts, token, vault, strategy, strategist, amount, RELATIVE_APPROX, amountWithoutFee
 ):
     # Deposit to the vault
     token.approve(vault.address, amount, {"from": accounts[0]})
@@ -59,7 +59,7 @@ def test_profitable_harvest(
 
 
 def test_change_debt(
-    gov, token, vault, strategy, strategist, amount, RELATIVE_APPROX, rariFeeRate
+    gov, token, vault, strategy, strategist, amount, RELATIVE_APPROX, amountWithoutFee
 ):
     # Deposit to the vault and harvest
     token.approve(vault.address, amount, {"from": gov})

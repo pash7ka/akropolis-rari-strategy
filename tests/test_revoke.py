@@ -17,7 +17,7 @@ def test_revoke_strategy_from_vault(
 
 
 def test_revoke_strategy_from_strategy(
-    token, vault, strategy, amount, gov, RELATIVE_APPROX, rariFeeRate
+    token, vault, strategy, amount, gov, RELATIVE_APPROX, amountWithoutFee
 ):
     # Deposit to the vault and harvest
     token.approve(vault.address, amount, {"from": gov})
