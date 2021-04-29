@@ -1,11 +1,11 @@
 import pytest
 
 def test_revoke_strategy_from_vault(
-    token, vault, strategy, amount, gov, RELATIVE_APPROX, amountWithoutFee
+    token, vault, strategy, amount, user, gov, RELATIVE_APPROX, amountWithoutFee
 ):
     # Deposit to the vault and harvest
-    token.approve(vault.address, amount, {"from": gov})
-    vault.deposit(amount, {"from": gov})
+    token.approve(vault.address, amount, {"from": user})
+    vault.deposit(amount, {"from": user})
     strategy.harvest()
     assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amountWithoutFee
 
@@ -17,11 +17,11 @@ def test_revoke_strategy_from_vault(
 
 
 def test_revoke_strategy_from_strategy(
-    token, vault, strategy, amount, gov, RELATIVE_APPROX, amountWithoutFee
+    token, vault, strategy, amount, user, gov, RELATIVE_APPROX, amountWithoutFee
 ):
     # Deposit to the vault and harvest
-    token.approve(vault.address, amount, {"from": gov})
-    vault.deposit(amount, {"from": gov})
+    token.approve(vault.address, amount, {"from": user})
+    vault.deposit(amount, {"from": user})
     strategy.harvest()
     assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amountWithoutFee
 
