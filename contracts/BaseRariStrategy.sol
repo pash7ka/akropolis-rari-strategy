@@ -25,7 +25,7 @@ import  "../interfaces/rari/IRariFundToken.sol";
 import  "../interfaces/rari/IRariGovernanceTokenDistributor.sol";
 import  "../interfaces/uniswap/IUniswapV2Router.sol";
 
-contract Strategy is BaseStrategy {
+abstract contract BaseRariStrategy is BaseStrategy {
     using SafeERC20 for IERC20;
     using Address for address;
     using SafeMath for uint256;
@@ -48,6 +48,8 @@ contract Strategy is BaseStrategy {
         // profitFactor = 100;
         // debtThreshold = 0;
     }
+
+    function rariPoolType() internal virtual returns(IRariGovernanceTokenDistributor.RariPool);
 
     function setRari(address _rari, string calldata _rariCurrencyCode, address _rariGovToken) external onlyAuthorized {
         if(address(rari) != address(0) && address(rari) != _rari){
@@ -148,7 +150,7 @@ contract Strategy is BaseStrategy {
         if(wantBalance > _debtOutstanding) {
             // Deposit tokens we will not need soon
             uint256 depositAmount = wantBalance.sub(_debtOutstanding);
-            rari.deposit(rariCurrencyCode, depositAmount);
+            rariDeposit(depositAmount);
         }
         
         updateStoredDepositedBalance();
@@ -193,18 +195,18 @@ contract Strategy is BaseStrategy {
             withdrawAmountUsd = rftToUsd(rftBalance);
         }
 
-        rari.withdraw(rariCurrencyCode, usdToWant(withdrawAmountUsd));
+        rariWithdraw(usdToWant(withdrawAmountUsd));
         swapRGT();
     }
 
     function claimAndSwapRGT() internal {
         IRariGovernanceTokenDistributor gov = IRariGovernanceTokenDistributor(IRariFundToken(address(rariFundToken)).rariGovernanceTokenDistributor());
-        gov.distributeRgt(address(this), IRariGovernanceTokenDistributor.RariPool.Yield);
+        gov.distributeRgt(address(this), rariPoolType());
 
         swapRGT();
     }
 
-    function swapRGT() internal {
+    function swapRGT() internal virtual {
         uint256 rgtBalance = rariGovToken.balanceOf(address(this));
         if(rgtBalance == 0) return;
 
@@ -225,6 +227,18 @@ contract Strategy is BaseStrategy {
         uniswap.swapExactTokensForTokens(wethBalance, 0, path, address(this), block.timestamp);
     }
 
+    function rariDeposit(uint256 amount) internal virtual {
+        rari.deposit(rariCurrencyCode, amount);
+    }
+
+    function rariWithdraw(uint256 amount) internal virtual {
+        rari.withdraw(rariCurrencyCode, amount);
+    }
+
+    function withdrawalFee(uint256 usdAmount) internal virtual returns(uint256) {
+        uint256 withdrawalFeeRate = rari.getWithdrawalFeeRate();
+        return usdAmount.mul(withdrawalFeeRate).div(EXP);
+    }
 
     function usdToRft(uint256 usdAmount) internal returns(uint256) {
         uint256 rftTotalSupply = rariFundToken.totalSupply();
@@ -256,11 +270,6 @@ contract Strategy is BaseStrategy {
         } else {
             return amount.mul(10**uint256(target-source));
         }
-    }
-
-    function withdrawalFee(uint256 usdAmount) internal returns(uint256) {
-        uint256 withdrawalFeeRate = rari.getWithdrawalFeeRate();
-        return usdAmount.mul(withdrawalFeeRate).div(EXP);
     }
 
     function prepareMigration(address _newStrategy) internal override {

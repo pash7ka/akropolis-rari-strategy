@@ -3,13 +3,32 @@ from brownie import config
 from brownie import interface
 from brownie import Contract
 
+
 @pytest.fixture
-def rari():
-    yield {
-        "fundManager":"0x59fa438cd0731ebf5f4cdcaf72d4960efd13fce6",
-        "currencyCode":"DAI",
-        "govToken":"0xD291E7a03283640FDc51b121aC401383A46cC623"
+@pytest.mark.parametrize("poolType",["stable", "yield", "ethereum"]) 
+def rariPoolType(poolType):
+    yield poolType
+
+@pytest.fixture
+def rari(rariPoolType):
+    rariPoolOptions = {
+        "stable": {
+            "fundManager":"0xC6BF8C8A55f77686720E0a88e2Fd1fEEF58ddf4a",
+            "currencyCode":"DAI",
+            "govToken":"0xD291E7a03283640FDc51b121aC401383A46cC623"
+        },
+        "yield": {
+            "fundManager":"0x59FA438cD0731EBF5F4cDCaf72D4960EFd13FCe6",
+            "currencyCode":"DAI",
+            "govToken":"0xD291E7a03283640FDc51b121aC401383A46cC623"
+        },
+        "ethereum": {
+            "fundManager":"0xD6e194aF3d9674b62D1b30Ec676030C23961275e",
+            "currencyCode":"ETH",
+            "govToken":"0xD291E7a03283640FDc51b121aC401383A46cC623"
+        },
     }
+    yield rariPoolOptions[rariPoolType]
 
 @pytest.fixture
 def uniswap():
@@ -90,8 +109,14 @@ def vault(pm, gov, rewards, guardian, management, token):
 
 
 @pytest.fixture
-def strategy(strategist, keeper, vault, Strategy, gov, rari, uniswap):
-    strategy = strategist.deploy(Strategy, vault)
+def strategy(strategist, keeper, vault, Strategy, gov, rari, uniswap, rariPoolType):
+    strategyContract = {
+        "stable": StableRariStrategy,
+        "yield": YieldRariStrategy,
+        "ethereum": EthRariStrategy
+    }
+
+    strategy = strategist.deploy(strategyContract[rariPoolType], vault)
     strategy.setKeeper(keeper)
     vault.addStrategy(strategy, 10_000, 0, 2 ** 256 - 1, 1_000, {"from": gov})
 
@@ -101,9 +126,13 @@ def strategy(strategist, keeper, vault, Strategy, gov, rari, uniswap):
     yield strategy
 
 @pytest.fixture
-def rariFeeRate(rari):
-    fundManager = interface.IRariFundManager(rari["fundManager"])
-    feeRate = fundManager.getWithdrawalFeeRate()
+def rariFeeRate(rari, rariPoolType):
+    if rariPoolType != 'ethereum':
+        fundManager = interface.IRariFundManager(rari["fundManager"])
+        feeRate = fundManager.getWithdrawalFeeRate()
+    else:
+        feeRate = 0
+    
     yield feeRate
 
 @pytest.fixture
