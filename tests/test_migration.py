@@ -5,8 +5,9 @@
 import pytest
 
 def test_migration(
-    token, vault, strategy, amount, Strategy, strategist, gov, user, RELATIVE_APPROX, amountWithoutFee, rari, uniswap, rariFeeRate,
+    token, vault, strategy, amount, strategyContract, strategist, gov, user, RELATIVE_APPROX, amountWithoutFee, rari, uniswap, rariFeeRate, rariPoolType
 ):
+   
     # Deposit to the vault and harvest
     token.approve(vault.address, amount, {"from": user})
     vault.deposit(amount, {"from": user})
@@ -14,7 +15,7 @@ def test_migration(
     assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amountWithoutFee
 
     # migrate to a new strategy
-    new_strategy = strategist.deploy(Strategy, vault)
+    new_strategy = strategist.deploy(strategyContract, vault)
     new_strategy.setRari(rari["fundManager"], rari["currencyCode"], rari["govToken"], {"from": gov})
     new_strategy.setUniswap(uniswap["router"], {"from": gov})
 

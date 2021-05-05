@@ -4,17 +4,17 @@ from brownie import interface
 from brownie import Contract
 
 
-@pytest.fixture
-@pytest.mark.parametrize("poolType",["stable", "yield", "ethereum"]) 
-def rariPoolType(poolType):
-    yield poolType
+@pytest.fixture(params=["stable", "yield", "ethereum"])
+#@pytest.fixture(params=["yield"])
+def rariPoolType(request):
+    yield request.param
 
 @pytest.fixture
 def rari(rariPoolType):
     rariPoolOptions = {
         "stable": {
             "fundManager":"0xC6BF8C8A55f77686720E0a88e2Fd1fEEF58ddf4a",
-            "currencyCode":"DAI",
+            "currencyCode":"USDC",
             "govToken":"0xD291E7a03283640FDc51b121aC401383A46cC623"
         },
         "yield": {
@@ -24,7 +24,7 @@ def rari(rariPoolType):
         },
         "ethereum": {
             "fundManager":"0xD6e194aF3d9674b62D1b30Ec676030C23961275e",
-            "currencyCode":"ETH",
+            "currencyCode":"WETH",
             "govToken":"0xD291E7a03283640FDc51b121aC401383A46cC623"
         },
     }
@@ -70,8 +70,14 @@ def keeper(accounts):
 
 
 @pytest.fixture
-def token():
-    token_address = "0x6b175474e89094c44da98b954eedeac495271d0f"  # this should be the address of the ERC-20 used by the strategy/vault (DAI)
+def token(rari):
+    tokensForPool = {
+        "DAI":  "0x6b175474e89094c44da98b954eedeac495271d0f",
+        "USDC": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+        "WETH": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+    }
+    currencyCode = rari["currencyCode"]
+    token_address = tokensForPool[currencyCode]
     yield Contract(token_address)
 
 
@@ -109,14 +115,17 @@ def vault(pm, gov, rewards, guardian, management, token):
 
 
 @pytest.fixture
-def strategy(strategist, keeper, vault, Strategy, gov, rari, uniswap, rariPoolType):
-    strategyContract = {
+def strategyContract(StableRariStrategy, YieldRariStrategy, EthRariStrategy, rariPoolType):
+    strategyContracts = {
         "stable": StableRariStrategy,
         "yield": YieldRariStrategy,
         "ethereum": EthRariStrategy
     }
+    yield strategyContracts[rariPoolType]
 
-    strategy = strategist.deploy(strategyContract[rariPoolType], vault)
+@pytest.fixture
+def strategy(strategist, keeper, vault, strategyContract, gov, rari, uniswap, rariPoolType):
+    strategy = strategist.deploy(strategyContract, vault)
     strategy.setKeeper(keeper)
     vault.addStrategy(strategy, 10_000, 0, 2 ** 256 - 1, 1_000, {"from": gov})
 
