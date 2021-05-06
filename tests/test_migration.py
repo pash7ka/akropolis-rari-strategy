@@ -17,7 +17,7 @@ def test_migration(
     # migrate to a new strategy
     new_strategy = strategist.deploy(strategyContract, vault)
     new_strategy.setRari(rari["fundManager"], rari["currencyCode"], rari["govToken"], {"from": gov})
-    new_strategy.setUniswap(uniswap["router"], {"from": gov})
+    new_strategy.setUniswap(uniswap, {"from": gov})
 
 
     strategy.migrate(new_strategy.address, {"from": gov})

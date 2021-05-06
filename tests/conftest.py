@@ -5,7 +5,7 @@ from brownie import Contract
 
 
 @pytest.fixture(params=["stable", "yield", "ethereum"])
-#@pytest.fixture(params=["yield"])
+#@pytest.fixture(params=["stable"])
 def rariPoolType(request):
     yield request.param
 
@@ -32,9 +32,8 @@ def rari(rariPoolType):
 
 @pytest.fixture
 def uniswap():
-    yield {
-        "router":"0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"
-    }
+    router_address = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"
+    yield Contract(router_address)
 
 @pytest.fixture
 def gov(accounts):
@@ -82,11 +81,14 @@ def token(rari):
 
 
 @pytest.fixture
-def amount(accounts, token, user):
-    amount = 10_000 * 10 ** token.decimals()
+def reserve(accounts):
     # In order to get some funds for the token you are about to use,
     # it impersonate an exchange address to use it's funds.
-    reserve = accounts.at("0xd551234ae421e3bcba99a0da6d736074f22192ff", force=True)
+    yield accounts.at("0xd551234ae421e3bcba99a0da6d736074f22192ff", force=True)
+
+@pytest.fixture
+def amount(accounts, token, user, reserve):
+    amount = 10_000 * 10 ** token.decimals()
     token.transfer(user, amount, {"from": reserve})
     yield amount
 
@@ -130,7 +132,7 @@ def strategy(strategist, keeper, vault, strategyContract, gov, rari, uniswap, ra
     vault.addStrategy(strategy, 10_000, 0, 2 ** 256 - 1, 1_000, {"from": gov})
 
     strategy.setRari(rari["fundManager"], rari["currencyCode"], rari["govToken"], {"from": gov})
-    strategy.setUniswap(uniswap["router"], {"from": gov})
+    strategy.setUniswap(uniswap, {"from": gov})
 
     yield strategy
 
