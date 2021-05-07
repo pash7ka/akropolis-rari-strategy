@@ -40,7 +40,7 @@ def test_emergency_exit(
 
 
 def test_profitable_harvest(
-    accounts, token, vault, strategy, user, strategist, amount, RELATIVE_APPROX, chain, amountWithoutFee, reserve, weth, uniswap, rari
+    accounts, token, vault, strategy, user, strategist, gov, amount, RELATIVE_APPROX, chain, amountWithoutFee, reserve, weth, uniswap, rari
 ):
     # Deposit to the vault
     token.approve(vault.address, amount, {"from": user})
@@ -50,21 +50,29 @@ def test_profitable_harvest(
     # Harvest 1: Send funds through the strategy
     strategy.harvest()
     assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amountWithoutFee
+    before_pps = vault.pricePerShare()
 
     # Add some code before harvest #2 to simulate earning yield
     # We are simulating RGT yield distributed to strategy
     eth_profit_amount = 2*1e18
     token.transfer(user, amount, {"from": reserve})
     uniswap.swapExactETHForTokens(0, [weth, rari["govToken"]], strategy, (chain[-1]["timestamp"]+300), {"amount":eth_profit_amount, "from":reserve})
+    rgt = Contract(rari["govToken"])
+    assert rgt.balanceOf(strategy) > 0
 
     # Harvest 2: Realize profit
     strategy.harvest()
     chain.sleep(3600 * 6)  # 6 hrs needed for profits to unlock
-    chain.mine(1)
+    chain.mine(1)    
     profit = token.balanceOf(vault.address)  # Profits go to vault
-    # TODO: Uncomment the lines below
-    assert token.balanceOf(strategy) + profit > amount
+
+    assert strategy.estimatedTotalAssets() + profit > amount
     assert vault.pricePerShare() > before_pps
+
+    # Check that we can actually return to the vault more than was deposited
+    vault.updateStrategyDebtRatio(strategy.address, 0, {"from": gov})   # Order Strategy to return everything to vault
+    strategy.harvest()
+    assert token.balanceOf(vault.address) > amount
 
 
 def test_change_debt(

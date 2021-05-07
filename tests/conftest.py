@@ -4,8 +4,8 @@ from brownie import interface
 from brownie import Contract
 
 
-@pytest.fixture(params=["stable", "yield", "ethereum"])
-#@pytest.fixture(params=["stable"])
+#@pytest.fixture(params=["stable", "yield", "ethereum"])
+@pytest.fixture(params=["yield"])
 def rariPoolType(request):
     yield request.param
 
@@ -87,9 +87,14 @@ def reserve(accounts):
     yield accounts.at("0xd551234ae421e3bcba99a0da6d736074f22192ff", force=True)
 
 @pytest.fixture
-def amount(accounts, token, user, reserve):
+def amount(accounts, token, user, reserve, rariPoolType):
     amount = 10_000 * 10 ** token.decimals()
+
+    if rariPoolType == "ethereum":
+        reserve.transfer(token, amount)     # transfer amount of ETH to WETH contract, this will return WETH to reserve
+    
     token.transfer(user, amount, {"from": reserve})
+
     yield amount
 
 
@@ -97,7 +102,6 @@ def amount(accounts, token, user, reserve):
 def weth():
     token_address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
     yield Contract(token_address)
-
 
 @pytest.fixture
 def weth_amout(user, weth):
@@ -138,11 +142,11 @@ def strategy(strategist, keeper, vault, strategyContract, gov, rari, uniswap, ra
 
 @pytest.fixture
 def rariFeeRate(rari, rariPoolType):
-    if rariPoolType != 'ethereum':
+    if rariPoolType == 'ethereum':
+        feeRate = 0
+    else:
         fundManager = interface.IRariFundManager(rari["fundManager"])
         feeRate = fundManager.getWithdrawalFeeRate()
-    else:
-        feeRate = 0
     
     yield feeRate
 
