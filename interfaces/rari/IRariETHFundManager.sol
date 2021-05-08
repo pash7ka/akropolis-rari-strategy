@@ -8,7 +8,7 @@ interface IRariETHFundManager {
     /**
      * @dev Contract of the RariFundToken.
      */
-    function rariFundToken() external returns(address);
+    function rariFundToken() external view returns(address);
 
     /**
      * @notice Returns the fund's total investor balance (all RFT holders' funds but not unclaimed fees) of all currencies in USD (scaled by 1e18).

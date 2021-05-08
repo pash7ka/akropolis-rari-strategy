@@ -5,7 +5,7 @@ from brownie import Contract
 
 
 #@pytest.fixture(params=["stable", "yield", "ethereum"])
-@pytest.fixture(params=["yield"])
+@pytest.fixture(params=["stable", "yield"])
 def rariPoolType(request):
     yield request.param
 
@@ -29,6 +29,13 @@ def rari(rariPoolType):
         },
     }
     yield rariPoolOptions[rariPoolType]
+
+@pytest.fixture
+def protected_tokens(rari):
+    rariFundManager = Contract(rari["fundManager"])
+    rft = rariFundManager.rariFundToken()
+    rgt = rari["govToken"]
+    yield [rft, rgt]
 
 @pytest.fixture
 def uniswap():
