@@ -210,21 +210,13 @@ abstract contract BaseRariStrategy is BaseStrategy {
         uint256 rgtBalance = rariGovToken.balanceOf(address(this));
         if(rgtBalance == 0) return;
 
-        address[] memory path = new address[](2);
+        address[] memory path = new address[](3);
 
         // NOTE: Can not swap RGT to want directly because uniswap only has RGT to ETH pair
-        // path[0] = address(rariGovToken);
-        // path[1] = address(want);
-        // uniswap.swapExactTokensForTokens(rgtBalance, 0, path, address(this), block.timestamp)
-
         path[0] = address(rariGovToken);
         path[1] = address(weth);
+        path[2] = address(want);
         uniswap.swapExactTokensForTokens(rgtBalance, 0, path, address(this), block.timestamp);
-
-        uint256 wethBalance = weth.balanceOf(address(this));
-        path[0] = address(weth);
-        path[1] = address(want);
-        uniswap.swapExactTokensForTokens(wethBalance, 0, path, address(this), block.timestamp);
     }
 
     function rariDeposit(uint256 amount) internal virtual {
