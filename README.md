@@ -1,172 +1,40 @@
-# Yearn Strategy Brownie Mix
+# Rari Strategy for Yearn Vaults
 
-## What you'll find here
+## Description
+This strategy is based on [Yearn Strategy Brownie Mix](https://github.com/yearn/brownie-strategy-mix/tree/99aba02f6ef83054d73629d850ab2ac5333d330b) and extends [BaseStrategy](https://github.com/yearn/yearn-vaults/blob/v0.3.5/contracts/BaseStrategy.sol).
 
-- Basic Solidity Smart Contract for creating your own Yearn Strategy ([`contracts/Strategy.sol`](contracts/Strategy.sol))
+It support [Rari Capital](https://rari.capital) [Stable](https://app.rari.capital/pools/stable) and [Yield](https://app.rari.capital/pools/stable) pools and can be added to USDC (Rari Stable Pool) and DAI, USDC, USDT, mUSD (Rari Yield Pool) Yearn vaults.
 
-- Interfaces for some of the most used DeFi protocols on ethereum mainnet. ([`interfaces/`](`interfaces/`))
+## Rari Pools addresses
+Rari Stable Pool Fund Manager Proxy: [0xC6BF8C8A55f77686720E0a88e2Fd1fEEF58ddf4a](https://etherscan.io/address/0xC6BF8C8A55f77686720E0a88e2Fd1fEEF58ddf4a#readProxyContract)
 
-- Sample test suite that runs on mainnet fork. ([`tests/`](tests))
+Rari Stable Pool (RSPT) Token Proxy: [0x016bf078ABcaCB987f0589a6d3BEAdD4316922B0](https://etherscan.io/address/0x016bf078abcacb987f0589a6d3beadd4316922b0#readProxyContract)
 
-This mix is configured for use with [Ganache](https://github.com/trufflesuite/ganache-cli) on a [forked mainnet](https://eth-brownie.readthedocs.io/en/stable/network-management.html#using-a-forked-development-network).
+Rari Yield Pool Fund Manager Proxy: [0x59FA438cD0731EBF5F4cDCaf72D4960EFd13FCe6](https://etherscan.io/address/0x59FA438cD0731EBF5F4cDCaf72D4960EFd13FCe6#readProxyContract)
 
-## How does it work for the User
+Rari Yield Pool (RYPT) Token Proxy: [0x3baa6B7Af0D72006d3ea770ca29100Eb848559ae](https://etherscan.io/address/0x3baa6b7af0d72006d3ea770ca29100eb848559ae#readProxyContract)
 
-Let's say Alice holds 100 DAI and wants to start earning yield % on them.
+RariGovernanceTokenDistributor Proxy: [0x9C0CaEb986c003417D21A7Daaf30221d61FC1043](https://etherscan.io/address/0x9c0caeb986c003417d21a7daaf30221d61fc1043#readProxyContract)
 
-For this Alice needs to `DAI.approve(vault.address, 100)`.
+Rari Governance Token (RGT) Proxy: [0xD291E7a03283640FDc51b121aC401383A46cC623](https://etherscan.io/address/0xD291E7a03283640FDc51b121aC401383A46cC623#code)
 
-Then Alice will call `Vault.deposit(100)`.
+## Strategy workflow
+- When `adjustPosition()` is called and some `want` tokens are available, startegy deposits them to the Rari pool and receives corresponding RSPT/RYPT token, which corresponds to startegy's share in the pool.
+- When `liquidatePosition()` is called strategy claims RGT tokens ans swaps the to `want` using Uniswap V2 and if more `want` has to be returned, it withdraws from the rari pool. Note: Rari pool may take withdrawal fee, wich is currently zero for Stable pool and 0.5% for Yield pool. Also interest fee is applied to yileds transparently for the startegy. Ocasionally the startegy may report some loss because of this withdrawal fee.
+- When `prepareReturn()` is called, strategy basically does same thing as with `liquidatePosition()`.
+- After each call to above methods startegy updates it's stored estimated funds, because during `estimatedTotalAssets()` call this information from Rari pools is not available since they require non-static call to get balance.
 
-Vault will then transfer 100 DAI from Alice to itself, and mint Alice the corresponding shares.
+## Contract structure
+There is a base contract for all pools: [BaseRariStrategy](/contracts/BaseRariStrategy.sol) which is extended by [StableRariStrategy](/contracts/StableRariStrategy.sol) for Stable pool and [YieldRariStrategy](/contracts/YieldRariStrategy.sol) for Yield pool.
 
-Alice can then redeem those shares using `Vault.withdrawAll()` for the corresponding DAI balance (exchanged at `Vault.pricePerShare()`).
-
-## Installation and Setup
-
-1. [Install Brownie](https://eth-brownie.readthedocs.io/en/stable/install.html) & [Ganache-CLI](https://github.com/trufflesuite/ganache-cli), if you haven't already.
-
-2. Sign up for [Infura](https://infura.io/) and generate an API key. Store it in the `WEB3_INFURA_PROJECT_ID` environment variable.
-
-```bash
-export WEB3_INFURA_PROJECT_ID=YourProjectID
-```
-
-3. Sign up for [Etherscan](www.etherscan.io) and generate an API key. This is required for fetching source codes of the mainnet contracts we will be interacting with. Store the API key in the `ETHERSCAN_TOKEN` environment variable.
-
-```bash
-export ETHERSCAN_TOKEN=YourApiToken
-```
-
-4. Download the mix.
-
-```bash
-brownie bake yearn-strategy
-```
-
-## Basic Use
-
-To deploy the demo Yearn Strategy in a development environment:
-
-1. Open the Brownie console. This automatically launches Ganache on a forked mainnet.
-
-```bash
-$ brownie console
-```
-
-2. Create variables for the Yearn Vault and Want Token addresses. These were obtained from the Yearn Registry. Also, loan the Yearn governance multisig.
-
-```python
->>> vault = Vault.at("0xBFa4D8AA6d8a379aBFe7793399D3DdaCC5bBECBB")  # yvDAI (v0.2.2)
->>> token = Token.at("0x6b175474e89094c44da98b954eedeac495271d0f")  # DAI
->>> gov = "ychad.eth"  # ENS for Yearn Governance Multisig
-```
-
-3. Deploy the [`Strategy.sol`](contracts/Strategy.sol) contract.
-
-```python
->>> strategy = Strategy.deploy(vault, {"from": accounts[0]})
-Transaction sent: 0xc8a35b3ecbbed196a344ed6b5c7ee6f50faf9b7eee836044d1c7ffe10093ef45
-  Gas price: 0.0 gwei   Gas limit: 6721975
-  Flashloan.constructor confirmed - Block: 9995378   Gas used: 796934 (11.86%)
-  Flashloan deployed at: 0x3194cBDC3dbcd3E11a07892e7bA5c3394048Cc87
-```
-
-4. Approve the strategy for the Vault. We must do this because we only approved Strategies can pull funding from the Vault.
-
-```python
-# 1000 DAI debt limit, no rate limit, 50 bps strategist fee
->>> vault.addStrategy(strategy, Wei("1000 ether"), 2 ** 256 - 1, 50, {"from": gov})
-Transaction sent: 0xa70b90eb9a9899e8f6e709c53a436976315b4279c4b6797d0a293e169f94d5b4
-  Gas price: 0.0 gwei   Gas limit: 6721975
-  Transaction confirmed - Block: 9995379   Gas used: 21055 (0.31%)
-```
-
-5. Now we are ready to put our strategy into action!
-
-```python
->>> harvest_tx = strategy.harvest({"from": accounts[0]})  # perform as many time as desired...
-```
-
-## Implementing Strategy Logic
-
-[`contracts/Strategy.sol`](contracts/Strategy.sol) is where you implement your own logic for your strategy. In particular:
-
-* Create a descriptive name for your strategy via `Strategy.name()`.
-* Invest your want tokens via `Strategy.adjustPosition()`.
-* Take profits and report losses via `Strategy.prepareReturn()`.
-* Unwind enough of your position to payback withdrawals via `Strategy.liquidatePosition()`.
-* Unwind all of your positions via `Strategy.exitPosition()`.
-* Fill in a way to estimate the total `want` tokens managed by the strategy via `Strategy.estimatedTotalAssets()`.
-* Migrate all the positions managed by your strategy via `Strategy.prepareMigration()`.
-* Make a list of all position tokens that should be protected against movements via `Strategy.protectedTokens()`.
-
-## Testing
-
-To run the tests:
-
-```
-brownie test
-```
-
-The example tests provided in this mix start by deploying and approving your [`Strategy.sol`](contracts/Strategy.sol) contract. This ensures that the loan executes succesfully without any custom logic. Once you have built your own logic, you should edit [`tests/test_flashloan.py`](tests/test_flashloan.py) and remove this initial funding logic.
-
-See the [Brownie documentation](https://eth-brownie.readthedocs.io/en/stable/tests-pytest-intro.html) for more detailed information on testing your project.
-
-## Debugging Failed Transactions
-
-Use the `--interactive` flag to open a console immediatly after each failing test:
-
-```
-brownie test --interactive
-```
-
-Within the console, transaction data is available in the [`history`](https://eth-brownie.readthedocs.io/en/stable/api-network.html#txhistory) container:
-
-```python
->>> history
-[<Transaction '0x50f41e2a3c3f44e5d57ae294a8f872f7b97de0cb79b2a4f43cf9f2b6bac61fb4'>,
- <Transaction '0xb05a87885790b579982983e7079d811c1e269b2c678d99ecb0a3a5104a666138'>]
-```
-
-Examine the [`TransactionReceipt`](https://eth-brownie.readthedocs.io/en/stable/api-network.html#transactionreceipt) for the failed test to determine what went wrong. For example, to view a traceback:
-
-```python
->>> tx = history[-1]
->>> tx.traceback()
-```
-
-To view a tree map of how the transaction executed:
-
-```python
->>> tx.call_trace()
-```
-
-See the [Brownie documentation](https://eth-brownie.readthedocs.io/en/stable/core-transactions.html) for more detailed information on debugging failed transactions.
-
-<!--
 ## Deployment
+1. Deploy [StableRariStrategy] or [YieldRariStrategy] 
+2. Call `setRari()` to set address of Fund Manager, RGT and symbol of the `want` currency
+3. Call `setUniswap()` to set address of Uniswap controller used to swap RGT
 
-When you are finished testing and ready to deploy to the mainnet:
 
-1. [Import a keystore](https://eth-brownie.readthedocs.io/en/stable/account-management.html#importing-from-a-private-key) into Brownie for the account you wish to deploy from.
-2. Edit [`scripts/deployment.py`](scripts/deployment.py) and add your keystore ID according to the comments.
-3. Run the deployment script on the mainnet using the following command:
 
-```bash
-$ brownie run deployment --network mainnet
-```
 
-You will be prompted to enter your keystore password, and then the contract will be deployed.
--->
 
-## Known issues
 
-### No access to archive state errors
 
-If you are using Ganache to fork a network, then you may have issues with the blockchain archive state every 30 minutes. This is due to your node provider (i.e. Infura) only allowing free users access to 30 minutes of archive state. To solve this, upgrade to a paid plan, or simply restart your ganache instance and redploy your contracts.
-
-# Resources
-
-- Yearn [Discord channel](https://discord.com/invite/6PNv2nF/)
-- Brownie [Gitter channel](https://gitter.im/eth-brownie/community)
