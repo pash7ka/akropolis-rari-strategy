@@ -4,7 +4,6 @@ from brownie import interface
 from brownie import Contract
 
 
-#@pytest.fixture(params=["stable", "yield", "ethereum"])
 @pytest.fixture(params=["stable", "yield"])
 def rariPoolType(request):
     yield request.param
@@ -21,12 +20,7 @@ def rari(rariPoolType):
             "fundManager":"0x59FA438cD0731EBF5F4cDCaf72D4960EFd13FCe6",
             "currencyCode":"DAI",
             "govToken":"0xD291E7a03283640FDc51b121aC401383A46cC623"
-        },
-        "ethereum": {
-            "fundManager":"0xD6e194aF3d9674b62D1b30Ec676030C23961275e",
-            "currencyCode":"WETH",
-            "govToken":"0xD291E7a03283640FDc51b121aC401383A46cC623"
-        },
+        }
     }
     yield rariPoolOptions[rariPoolType]
 
@@ -79,8 +73,7 @@ def keeper(accounts):
 def token(rari):
     tokensForPool = {
         "DAI":  "0x6b175474e89094c44da98b954eedeac495271d0f",
-        "USDC": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
-        "WETH": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+        "USDC": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
     }
     currencyCode = rari["currencyCode"]
     token_address = tokensForPool[currencyCode]
@@ -97,9 +90,6 @@ def reserve(accounts):
 def amount(accounts, token, user, reserve, rariPoolType):
     amount = 10_000 * 10 ** token.decimals()
 
-    if rariPoolType == "ethereum":
-        reserve.transfer(token, amount)     # transfer amount of ETH to WETH contract, this will return WETH to reserve
-    
     token.transfer(user, amount, {"from": reserve})
 
     yield amount
@@ -128,11 +118,10 @@ def vault(pm, gov, rewards, guardian, management, token):
 
 
 @pytest.fixture
-def strategyContract(StableRariStrategy, YieldRariStrategy, EthRariStrategy, rariPoolType):
+def strategyContract(StableRariStrategy, YieldRariStrategy, rariPoolType):
     strategyContracts = {
         "stable": StableRariStrategy,
-        "yield": YieldRariStrategy,
-        "ethereum": EthRariStrategy
+        "yield": YieldRariStrategy
     }
     yield strategyContracts[rariPoolType]
 
@@ -149,11 +138,8 @@ def strategy(strategist, keeper, vault, strategyContract, gov, rari, uniswap, ra
 
 @pytest.fixture
 def rariFeeRate(rari, rariPoolType):
-    if rariPoolType == 'ethereum':
-        feeRate = 0
-    else:
-        fundManager = interface.IRariFundManager(rari["fundManager"])
-        feeRate = fundManager.getWithdrawalFeeRate()
+    fundManager = interface.IRariFundManager(rari["fundManager"])
+    feeRate = fundManager.getWithdrawalFeeRate()
     
     yield feeRate
 
