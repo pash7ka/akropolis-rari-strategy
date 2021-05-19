@@ -3,7 +3,7 @@
 ## Description
 This strategy is based on [Yearn Strategy Brownie Mix](https://github.com/yearn/brownie-strategy-mix/tree/99aba02f6ef83054d73629d850ab2ac5333d330b) and extends [BaseStrategy](https://github.com/yearn/yearn-vaults/blob/v0.3.5/contracts/BaseStrategy.sol).
 
-It support [Rari Capital](https://rari.capital) [Stable](https://app.rari.capital/pools/stable) and [Yield](https://app.rari.capital/pools/stable) pools and can be added to USDC (Rari Stable Pool) and DAI, USDC, USDT, mUSD (Rari Yield Pool) Yearn vaults.
+It support [Rari Capital](https://rari.capital) [Stable](https://app.rari.capital/pools/stable) and [Yield](https://app.rari.capital/pools/yield) pools and can be added to USDC (Rari Stable Pool) and DAI, USDC, USDT, mUSD (Rari Yield Pool) Yearn vaults.
 
 ## Rari Pools addresses
 Rari Stable Pool Fund Manager Proxy: [0xC6BF8C8A55f77686720E0a88e2Fd1fEEF58ddf4a](https://etherscan.io/address/0xC6BF8C8A55f77686720E0a88e2Fd1fEEF58ddf4a#readProxyContract)
